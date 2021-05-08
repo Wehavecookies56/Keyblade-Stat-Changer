@@ -19,10 +19,10 @@ See `example.csv` in the repo which contains every keyblade.
 
 ## Config
 
-`csvPath=keyblades.csv` the path of the CSV file containing the stats to change to. Can be a full path like `C:/keyblades.csv`.
-`jsonFolderPath=keyblades/` the path of the folder that contains all the `.json` files from the mod. Can be a full path like `C:/keyblades/`.
-`levelToChange=0` the keyblade upgrade level stats to change, `0` for the base stats and `1-10` for the upgrade level stats.
-`autoLevelStats=True` If set to True the upgrade level stats will be automatically calculated from the stats given from the CSV. Only works if `levelToChange` is `0`.
+- `csvPath=keyblades.csv` the path of the CSV file containing the stats to change to. Can be a full path like `C:/keyblades.csv`.
+- `jsonFolderPath=keyblades/` the path of the folder that contains all the `.json` files from the mod. Can be a full path like `C:/keyblades/`.
+- `levelToChange=0` the keyblade upgrade level stats to change, `0` for the base stats and `1-10` for the upgrade level stats.
+- `autoLevelStats=True` If set to True the upgrade level stats will be automatically calculated from the stats given from the CSV. Only works if `levelToChange` is `0`.
 
 ## Future improvements
 
