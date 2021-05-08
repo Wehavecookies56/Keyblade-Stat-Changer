@@ -1,7 +1,7 @@
 # Keyblade-Stat-Changer
 ## What this is for
 
-This is a Keyblade stat changer script for [Kingdom Keys](https://github.com/Wehavecookies56/Kingdom-Keys), a Minecraft mod, this script will take the values from a CSV file and write them to the JSON files for each keyblade in the CSV allowing quick changes to the stats for the 120+ keyblades in Kingdom Keys. This was created somewhat quickly so it's fairly simple but figured it'd be useful for not only our dev team but anyone wanting to make a datapack.
+This is a Keyblade stat changer script made in Python 3.7 for [Kingdom Keys](https://github.com/Wehavecookies56/Kingdom-Keys), a Minecraft mod, this script will take the values from a CSV file and write them to the JSON files for each keyblade in the CSV allowing quick changes to the stats for the 120+ keyblades in Kingdom Keys. This was created somewhat quickly so it's fairly simple but figured it'd be useful for not only our dev team but anyone wanting to make a datapack.
 
 ## Basic Usage
 Here's a quick guide on using the tool without the need to edit the config
