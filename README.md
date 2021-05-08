@@ -29,3 +29,4 @@ See `example.csv` in the repo which contains every keyblade.
 - Ability to change other parts of the JSON files
 - Alternative way to enter config options when running the script instead of relying on the config file
 - Ability to add keyblades to list of valid keyblade names
+- Interface?
