@@ -33,6 +33,43 @@ def readNames():
 #JSON data read from json files (key:keyblade name, value:json data)
 keybladeJsonData = {}
 
+def strToBool(str):
+	if str == "True":
+		return True
+	if str == "False":
+		return False
+#Creates config file if it doesn't exist and adds missing options
+def generateConfig():
+	global csvPath, jsonFolder, levelToChange, autoLevelStats, namesFile, writeLog, generateDataGenCode
+	configDict = {
+		"csvPath": csvPath,
+		"jsonFolderPath": jsonFolder,
+		"levelToChange": str(levelToChange),
+		"autoLevelStats": str(autoLevelStats),
+		"namesFilePath": namesFile,
+		"writeLog": str(writeLog),
+		"generateDataGenCode": str(generateDataGenCode) 
+	}
+	if not os.path.exists("config.cfg"):
+		with open("config.cfg", 'x') as cfgFile:
+			for configKey, configValue in configDict.items():
+				cfgFile.write(configKey + "=" + configValue + "\n")
+	else:
+		#Add missing options
+		with open("config.cfg", 'r+') as cfgFile:
+			config = cfgFile.readlines()
+			existingConfig = []
+			newLine = False
+			for line in config:
+				if "\n" not in line:
+					newLine = True
+				existingConfig.append(str(line).split("=")[0])
+			for configKey, configValue in configDict.items():
+				if configKey not in existingConfig:
+					if newLine:
+						cfgFile.write("\n")
+					cfgFile.write(configKey + "=" + configValue + "\n")
+
 #Load config if it exists format:key=value
 def loadConfig():
 	if os.path.exists("config.cfg"):
@@ -51,16 +88,16 @@ def loadConfig():
 					levelToChange = int(configdict[1].rstrip('\n'))
 				if (configdict[0] == "autoLevelStats"):
 					global autoLevelStats
-					autoLevelStats = bool(configdict[1].rstrip('\n'))
-				if (configdict[0] == "namesFile"):
+					autoLevelStats = strToBool(configdict[1].rstrip('\n'))
+				if (configdict[0] == "namesFilePath"):
 					global namesFile
 					namesFile = configdict[1].rstrip('\n')
 				if (configdict[0] == "writeLog"):
 					global writeLog
-					writeLog = bool(configdict[1].rstrip('\n'))
+					writeLog = strToBool(configdict[1].rstrip('\n'))
 				if (configdict[0] == "generateDataGenCode"):
 					global generateDataGenCode
-					generateDataGenCode = bool(configdict[1].rstrip('\n'))
+					generateDataGenCode = strToBool(configdict[1].rstrip('\n'))
 
 
 #Converts the localised keyblade names from the csv to the file name for the jsons
@@ -158,10 +195,6 @@ def writeJson(keyblade, folder):
 		return True
 	return False
 
-matNameToVariable = {
-	"kingdomkeys:mat_wellspring_shard": "SM_WellspringShard"	
-}
-
 dataGenOutput = []
 
 def buildDataGenCode(keyblade):
@@ -197,6 +230,7 @@ def buildDataGenCode(keyblade):
 
 	dataGenOutput.extend(output)
 
+generateConfig()
 loadConfig()
 
 readNames()
