@@ -11,6 +11,7 @@ levelToChange = 0
 autoLevelStats = True
 namesFile = "names.json"
 writeLog = True
+generateDataGenCode = False
 
 #Data read from CSV (key:keyblade, value:[str, mag])
 keybladeCsvData = {}
@@ -57,6 +58,10 @@ def loadConfig():
 				if (configdict[0] == "writeLog"):
 					global writeLog
 					writeLog = bool(configdict[1].rstrip('\n'))
+				if (configdict[0] == "generateDataGenCode"):
+					global generateDataGenCode
+					generateDataGenCode = bool(configdict[1].rstrip('\n'))
+
 
 #Converts the localised keyblade names from the csv to the file name for the jsons
 def buildFileName(name, folder):
@@ -153,6 +158,45 @@ def writeJson(keyblade, folder):
 		return True
 	return False
 
+matNameToVariable = {
+	"kingdomkeys:mat_wellspring_shard": "SM_WellspringShard"	
+}
+
+dataGenOutput = []
+
+def buildDataGenCode(keyblade):
+	keybladeName = keybladeNamesKey[keyblade]
+	keybladeName = "".join(i.capitalize() for i in keybladeName.split('_'))
+	keybladeName = keybladeName[0].lower() + keybladeName[1:]
+	keybladeName = keybladeName.replace("Kh1", "KH1").replace("Kh2", "KH2").replace("Kh3", "KH3").replace("Bbs", "BBS").replace("Ddd", "DDD")
+	firstLine = "getBuilder(Strings." + keybladeName + ").keychain(Strings." + keybladeName + "Chain).baseStats(" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ")\n"
+	abilityLine = "    .abilities("
+	for ability in keybladeJsonData[keyblade]["abilities"]:
+		abilityLine += "\"" + ability + "\","
+	lastComma = abilityLine.rfind(',')
+	abilityLine = abilityLine[:lastComma] + abilityLine[lastComma + 1:]
+	abilityLine += ")\n"
+	levelLines = []
+	for level in keybladeJsonData[keyblade]["levels"]:
+		materialsDic = {}
+		line = "        .level(new KeybladeLevel.KeybladeLevelBuilder().withStats(" + str(level["str"]) + ", " + str(level["mag"]) + ").withMaterials(new Recipe()\n            "
+		for materials in level["recipe"]:
+			matName = materials["material"]
+			matName = "".join(i.capitalize() for i in matName.split('_'))
+			matName = matName.replace("Kingdomkeys:mat", "SM_", 1)
+			materialsDic[matName] = int(materials["quantity"])
+		for name, quan in materialsDic.items():
+			line += ".addMaterial(Strings." + name + ", " + str(quan) + ")"
+		line += ").build())\n"
+		levelLines.append(line)
+	output = [firstLine, abilityLine]
+	for line in levelLines:
+		output.append(line)
+	output.append("    .desc(\"" + str(keybladeJsonData[keyblade]["description"]) + "\");\n")
+	output.append("\n")
+
+	dataGenOutput.extend(output)
+
 loadConfig()
 
 readNames()
@@ -176,7 +220,12 @@ else:
 
 if validCSV and validJSON and validNames:
 	processStats()
-
+	if generateDataGenCode:
+		for keyblade in keybladeCsvData:
+			buildDataGenCode(keyblade)
+		with open("output.java", 'w') as out:
+			out.writelines(dataGenOutput)
+			print("Generated datagen java code in output.java")
 	succeeded = 0
 	total = 0
 

@@ -3,6 +3,12 @@
 
 This is a Keyblade stat changer script made in Python 3.7 for [Kingdom Keys](https://github.com/Wehavecookies56/Kingdom-Keys), a Minecraft mod, this script will take the values from a CSV file and write them to the JSON files for each keyblade in the CSV allowing quick changes to the stats for the 120+ keyblades in Kingdom Keys. This was created somewhat quickly so it's fairly simple but figured it'd be useful for not only our dev team but anyone wanting to make a datapack.
 
+## Features
+- Replace keyblade and organization weapon stats in the json files from Kingdom Keys with values in a CSV file
+- Generate a log file showing the previous and the new stats, possibly useful for creating something like a changelog
+- Automatically calculate the stats for all the levels for the upgrades
+- Generate the code for the datagen with the stat changes to be used in the mod
+
 ## Basic Usage
 Here's a quick guide on using the tool without the need to edit the config
 
@@ -25,10 +31,10 @@ See `example.csv` in the repo which contains every keyblade.
 - `autoLevelStats=True` If set to True the upgrade level stats after the `levelToChange` level will be automatically calculated from the stats given from the CSV.
 - `namesFile=names.json` the path of the JSON file containing the names that will be mapped to the JSON file names. Can be a full path like `C:/names.json`.
 - `writeLog=True` enable whether the log should be created
+- `generateDataGenCode=False` enable generating code for the datagen in the mod, only really useful for the Kingdom Keys devs. Code to be placed in `online.kingdomkeys.kingdomkeys.datagen.init.KeybladeStats`
 
 ## Future improvements
 
 - Ability to change other parts of the JSON files
-- Ability to set the stats in the datagen java class
 - Alternative way to enter config options when running the script instead of relying on the config file
 - Interface
