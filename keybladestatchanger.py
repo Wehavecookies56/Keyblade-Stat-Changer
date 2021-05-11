@@ -2,19 +2,22 @@ import csv
 import json
 import os.path
 import urllib.request
+import os
 
 #CSV format: 
 # keyblade name, base str, base mag
 
-csvPath = "keyblades.csv" #input('Enter the path for the CSV file: ')
+csvPath = "output.csv" #input('Enter the path for the CSV file: ')
 jsonFolder = "keyblades/" #input('Enter the path for the folder containing the JSONs: ')
+orgFolder = "organization/"
 levelToChange = 0
 autoLevelStats = True
 namesFile = "names.json"
 writeLog = True
 skipMenuChoice = -1
+weaponType = "keyblade"
 
-version = "1.4"
+version = "1.5"
 
 #Data read from CSV (key:keyblade, value:[str, mag])
 keybladeCsvData = {}
@@ -29,9 +32,11 @@ def readNames():
 		with open(namesFile, 'r') as names:
 			namesData = names.read()
 			namesJson = json.loads(namesData)
-			for key, value in namesJson.items():
+			for key in namesJson.keys():
 				global keybladeNamesKey
-				keybladeNamesKey[key] = value
+				keybladeNamesKey[key] = {}
+				for weapon, value in namesJson[key].items():
+					keybladeNamesKey[key][weapon] = value
 
 #JSON data read from json files (key:keyblade name, value:json data)
 keybladeJsonData = {}
@@ -43,15 +48,17 @@ def strToBool(str):
 		return False
 #Creates config file if it doesn't exist and adds missing options
 def generateConfig():
-	global csvPath, jsonFolder, levelToChange, autoLevelStats, namesFile, writeLog, skipMenuChoice
+	global csvPath, jsonFolder, orgFolder, levelToChange, autoLevelStats, namesFile, writeLog, skipMenuChoice
 	configDict = {
 		"csvPath": csvPath,
-		"jsonFolderPath": jsonFolder,
+		"keybladeJsonFolderPath": jsonFolder,
+		"organizationJsonFolderPath": orgFolder,
 		"levelToChange": str(levelToChange),
 		"autoLevelStats": str(autoLevelStats),
 		"namesFilePath": namesFile,
 		"writeLog": str(writeLog),
-		"skipMenuChoice": str(skipMenuChoice)
+		"skipMenuChoice": str(skipMenuChoice),
+		"weaponType": weaponType
 	}
 	if not os.path.exists("config.cfg"):
 		with open("config.cfg", 'x') as cfgFile:
@@ -83,9 +90,12 @@ def loadConfig():
 				if (configdict[0] == "csvPath"):
 					global csvPath
 					csvPath = configdict[1].rstrip('\n')
-				if (configdict[0] == "jsonFolderPath"):
+				if (configdict[0] == "keybladeJsonFolderPath"):
 					global jsonFolder
 					jsonFolder = configdict[1].rstrip('\n')
+				if (configdict[0] == "organizationJsonFolderPath"):
+					global orgFolder
+					orgFolder = configdict[1].rstrip('\n')
 				if (configdict[0] == "levelToChange"):
 					global levelToChange
 					levelToChange = int(configdict[1].rstrip('\n'))
@@ -101,6 +111,9 @@ def loadConfig():
 				if (configdict[0] == "skipMenuChoice"):
 					global skipMenuChoice
 					skipMenuChoice = int(configdict[1].rstrip('\n'))
+				if (configdict[0] == "weaponType"):
+					global weaponType
+					weaponType = configdict[1].rstrip('\n')
 				
 
 
@@ -108,7 +121,7 @@ def loadConfig():
 def buildFileName(name, folder):
 	if not folder.endswith('/'):
 		folder+='/'
-	return folder + keybladeNamesKey[name] + ".json"
+	return folder + keybladeNamesKey[weaponType][name] + ".json"
 
 #Reads the csv file and stores all the data in the dictionary
 def readCSV():
@@ -163,7 +176,10 @@ def writeToLog(message, new):
 def processStats():
 	readCSV()
 	for keyblade in keybladeCsvData:
-		readJSON(keyblade, jsonFolder)
+		if weaponType == "keyblade":
+			readJSON(keyblade, jsonFolder)
+		else:
+			readJSON(keyblade, orgFolder)
 		if keyblade in keybladeJsonData:
 			global autoLevelStats, levelToChange
 			if (levelToChange == 0 or not "levels" in keybladeJsonData[keyblade]):
@@ -206,7 +222,9 @@ dataGenOutput = []
 #generates java code for the datagen for keyblades, uses json data to build it
 def buildDataGenCode(keyblade):
 	#convert keyblade file name to variable name in Strings.java
-	keybladeName = keybladeNamesKey[keyblade]
+	if weaponType == "organization":
+		return
+	keybladeName = keybladeNamesKey["keyblade"][keyblade]
 	keybladeName = "".join(i.capitalize() for i in keybladeName.split('_'))
 	keybladeName = keybladeName[0].lower() + keybladeName[1:]
 	keybladeName = keybladeName.replace("Kh1", "KH1").replace("Kh2", "KH2").replace("Kh3", "KH3").replace("Bbs", "BBS").replace("Ddd", "DDD")
@@ -249,16 +267,20 @@ def validateFile(file, type):
 def csvToJson():
 	print("CSV to JSON")
 
-	if validateFile(csvPath, "CSV") and validateFile(jsonFolder, "JSON folder") and validateFile(namesFile, "Names JSON"):
+	jsonf = jsonFolder
+	if (weaponType == "organization"):
+		jsonf = orgFolder
+
+	if validateFile(csvPath, "CSV") and validateFile(jsonf, "JSON folder") and validateFile(namesFile, "Names JSON"):
 		processStats()
 		succeeded = 0
 		total = 0
 		if confirm("Write new stats to json files?"):
 			if writeToLog:
-				writeToLog("Format - Keyblade: (strength, magic) -> (new strength, new magic)", True)
+				writeToLog("Format - Weapon: (strength, magic) -> (new strength, new magic)", True)
 			for keyblade in keybladeCsvData:
 				total += 1
-				if writeJson(keyblade, jsonFolder):
+				if writeJson(keyblade, jsonf):
 					succeeded += 1
 					if (levelToChange == 0):
 						message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
@@ -273,10 +295,13 @@ def csvToJson():
 def jsonToCsv():
 	print("JSON to CSV")
 
-	for name in keybladeNamesKey.keys():
-		global jsonFolder
-		if os.path.exists(buildFileName(name, jsonFolder)):
-			readJSON(name, jsonFolder)
+	for name in keybladeNamesKey[weaponType].keys():
+		global jsonFolder, orgFolder
+		jsonf = jsonFolder
+		if (weaponType == "organization"):
+			jsonf = orgFolder
+		if os.path.exists(buildFileName(name, jsonf)):
+			readJSON(name, jsonf)
 	
 	csvOutput = []
 
@@ -294,7 +319,10 @@ def jsonToCsv():
 def csvToJava():
 	print("CSV to Java")
 	dataGenOutput.clear()
-	if validateFile(csvPath, "CSV") and validateFile(jsonFolder, "JSON folder"):
+	jsonf = jsonFolder
+	if (weaponType == "organization"):
+		jsonf = orgFolder
+	if validateFile(csvPath, "CSV") and validateFile(jsonf, "JSON folder"):
 		processStats()
 		readCSV()
 		for keyblade in keybladeCsvData:
@@ -305,6 +333,45 @@ def csvToJava():
 	if skipMenuChoice not in options.keys():
 		displayOptions()
 
+def dlKeyblades():
+	print("Downloading keyblade jsons from: https://raw.githubusercontent.com/Wehavecookies56/Kingdom-Keys/master/src/generated/resources/data/kingdomkeys/keyblades/...")
+	for name in keybladeNamesKey["keyblade"].keys():
+		urlBase = "https://raw.githubusercontent.com/Wehavecookies56/Kingdom-Keys/master/src/generated/resources/data/kingdomkeys/keyblades/"
+		fileName = keybladeNamesKey["keyblade"][name] + ".json"
+		if (not os.path.exists(jsonFolder + fileName)):
+			#exception because of issue with datagen
+			if (name == "Incomplete X-blade"):
+				urlBase = "https://raw.githubusercontent.com/Wehavecookies56/Kingdom-Keys/master/src/main/resources/data/kingdomkeys/keyblades/"
+			url = urlBase + fileName
+			try:
+				if (not os.path.exists(jsonFolder)):
+					os.mkdir(jsonFolder)
+				print("Downloading " + fileName + " to " + jsonFolder + fileName)
+				urllib.request.urlretrieve(url, jsonFolder + fileName)
+			except urllib.error.HTTPError:
+				pass
+	if skipMenuChoice not in options.keys():
+		displayOptions()
+
+			
+
+def dlOrgWeapons():
+	print("Downloading keyblade jsons from: https://raw.githubusercontent.com/Wehavecookies56/Kingdom-Keys/master/src/main/resources/data/kingdomkeys/organization/...")
+	urlBase = "https://raw.githubusercontent.com/Wehavecookies56/Kingdom-Keys/master/src/main/resources/data/kingdomkeys/organization/"
+	for name in keybladeNamesKey["organization"].keys():
+		fileName = keybladeNamesKey["organization"][name] + ".json"
+		if (not os.path.exists(orgFolder + fileName)):
+			url = urlBase + fileName
+			try:
+				if (not os.path.exists(orgFolder)):
+					os.mkdir(orgFolder)
+				print("Downloading " + fileName + " to " + orgFolder + fileName)
+				urllib.request.urlretrieve(url, orgFolder + fileName)
+			except urllib.error.HTTPError:
+				pass
+	if skipMenuChoice not in options.keys():
+		displayOptions()
+
 def exit():
 	print("Thanks for using the tool :)")
 
@@ -312,7 +379,9 @@ options = {
 	0: [csvToJson, "CSV to JSON(s): writes the stats specified in the CSV file to all the corresponding JSON files"],
 	1: [jsonToCsv, "JSON(s) to CSV: creates a CSV file from the folder containing the JSON files, will use levelToChange"],
 	2: [csvToJava, "CSV+JSON to Java: generates datagen code for stat changes, doesn't work for organization weapons"],
-	3: [exit, "Exit"]
+	3: [dlKeyblades, "Download keyblade JSONs: downloads the JSON files for all the keyblades from the Kingdom Keys github repo"],
+	4: [dlOrgWeapons, "Download organization weapon JSONs: downloads the JSON files for all the organization weapons from the Kingdom Keys github repo"],
+	5: [exit, "Exit"]
 }
 
 def menuChoice():
@@ -335,6 +404,7 @@ def displayOptions():
 	if skipMenuChoice not in options.keys():
 		print("\n")
 		print("Keyblade Stat Changer v" + version)
+		print("Weapon type is: " + weaponType)
 		print("--------------------------------")
 		for index, option in options.items():
 			print(str(index) + ". " + option[1])

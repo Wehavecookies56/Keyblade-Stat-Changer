@@ -15,7 +15,7 @@ This is a Keyblade stat changer script made in Python 3.7 for [Kingdom Keys](htt
 Here's a quick guide on using the tool without the need to edit the config
 
 1. Run `keybladestatchanger.py`, you'll need Python 3.x installed
-2. Extract the `data\kingdomkeys\keyblades\` folder from the latest Kingdom Keys `.jar` file. So that the `keyblades` folder is in the same folder as `keybladestatchanger.py`
+2. Enter `3` to download the keyblade `.json` files from the Kingdom Keys repository
 3. Enter `1` to generate a `.csv` file with all keyblades and stats from the `.json` files
 3. Modify the values in the generated `.csv` file to your liking
 4. Enter `0` to write the values in the `.csv` file to the `.json` files contained in the `keyblades` folder
@@ -24,17 +24,19 @@ Here's a quick guide on using the tool without the need to edit the config
 ## CSV format
 
 The CSV file you supply should have the format `name, strength, magic` for example `Kingdom Key, 1, 0`.
-See `example.csv` in the repo which contains every keyblade.
+You can generate the CSV file from the JSON files with the script
 
 ## Config
 
 - `csvPath=keyblades.csv` the path of the CSV file containing the stats to change to. Can be a full path like `C:/keyblades.csv`.
-- `jsonFolderPath=keyblades/` the path of the folder that contains all the `.json` files from the mod. Can be a full path like `C:/keyblades/`.
+- `keybladeJsonFolderPath=keyblades/` the path of the folder that contains all the `.json` files for the keyblades. Can be a full path like `C:/keyblades/`.
+- `organizationJsonFolderPath=keyblades/` the path of the folder that contains all the `.json` files for the organization weapons. Can be a full path like `C:/organization/`.
 - `levelToChange=0` the keyblade upgrade level stats to change, `0` for the base stats and `1-10` for the upgrade level stats.
 - `autoLevelStats=True` If set to True the upgrade level stats after the `levelToChange` level will be automatically calculated from the stats given from the CSV.
 - `namesFile=names.json` the path of the JSON file containing the names that will be mapped to the JSON file names. Can be a full path like `C:/names.json`.
 - `writeLog=True` enable whether the log should be created
 - `skipMenuChoice=-1` set value to one of the options on the menu to skip the choice when running the script, setting the value to anything else will cause it to display the options
+- `weaponType=keyblade` set the weapon type to change the stats of either `keyblade` or `organization`
 
 ## Future improvements
 
