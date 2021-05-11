@@ -5,3 +5,4 @@ organization
 *.log
 *.java
 *.cfg
+*.json
