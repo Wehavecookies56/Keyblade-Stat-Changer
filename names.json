@@ -1,5 +1,5 @@
 {
-	{
+	"keyblade": {
 		"Abaddon Plasma": "abaddon_plasma",
 		"Abyssal Tide": "abyssal_tide",
 		"Aced's Keyblade": "aceds_keyblade",
@@ -122,7 +122,7 @@
 		"Young Xehanort's Keyblade": "young_xehanorts_keyblade",
 		"Zero/One": "zero_one"
 	},
-	{
+	"organization": {
 		"Abandoned Dogma": "abandoned_dogma",
 		"Malice": "malice",
 		"Sanction": "sanction",
