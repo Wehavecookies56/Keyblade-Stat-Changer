@@ -1,6 +1,7 @@
 import csv
 import json
 import os.path
+import urllib.request
 
 #CSV format: 
 # keyblade name, base str, base mag
@@ -11,7 +12,9 @@ levelToChange = 0
 autoLevelStats = True
 namesFile = "names.json"
 writeLog = True
-generateDataGenCode = False
+skipMenuChoice = -1
+
+version = "1.4"
 
 #Data read from CSV (key:keyblade, value:[str, mag])
 keybladeCsvData = {}
@@ -40,7 +43,7 @@ def strToBool(str):
 		return False
 #Creates config file if it doesn't exist and adds missing options
 def generateConfig():
-	global csvPath, jsonFolder, levelToChange, autoLevelStats, namesFile, writeLog, generateDataGenCode
+	global csvPath, jsonFolder, levelToChange, autoLevelStats, namesFile, writeLog, skipMenuChoice
 	configDict = {
 		"csvPath": csvPath,
 		"jsonFolderPath": jsonFolder,
@@ -48,7 +51,7 @@ def generateConfig():
 		"autoLevelStats": str(autoLevelStats),
 		"namesFilePath": namesFile,
 		"writeLog": str(writeLog),
-		"generateDataGenCode": str(generateDataGenCode) 
+		"skipMenuChoice": str(skipMenuChoice)
 	}
 	if not os.path.exists("config.cfg"):
 		with open("config.cfg", 'x') as cfgFile:
@@ -95,9 +98,10 @@ def loadConfig():
 				if (configdict[0] == "writeLog"):
 					global writeLog
 					writeLog = strToBool(configdict[1].rstrip('\n'))
-				if (configdict[0] == "generateDataGenCode"):
-					global generateDataGenCode
-					generateDataGenCode = strToBool(configdict[1].rstrip('\n'))
+				if (configdict[0] == "skipMenuChoice"):
+					global skipMenuChoice
+					skipMenuChoice = int(configdict[1].rstrip('\n'))
+				
 
 
 #Converts the localised keyblade names from the csv to the file name for the jsons
@@ -116,10 +120,11 @@ def readCSV():
 #Reads the given json file and stores the data in the dictionary
 def readJSON(name, folder):
 	fileName = buildFileName(name, folder)
-	with open(fileName, 'r') as file:
-		data = file.read()
-		jsondata = json.loads(data)
-		keybladeJsonData[name] = jsondata;
+	if os.path.exists(fileName):
+		with open(fileName, 'r') as file:
+			data = file.read()
+			jsondata = json.loads(data)
+			keybladeJsonData[name] = jsondata;
 
 #Takes the base stats from the csv and sets the level stats mag+1 every even, str+1 every odd
 def calculateLevelStats(keyblade):
@@ -159,19 +164,20 @@ def processStats():
 	readCSV()
 	for keyblade in keybladeCsvData:
 		readJSON(keyblade, jsonFolder)
-		global autoLevelStats, levelToChange
-		if (levelToChange == 0 or not "levels" in keybladeJsonData[keyblade]):
-			message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-			print(message)
-			keybladeJsonData[keyblade]["base_stats"]["str"] = int(keybladeCsvData[keyblade][0])
-			keybladeJsonData[keyblade]["base_stats"]["mag"] = int(keybladeCsvData[keyblade][1])
-		else:
-			message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-			print(message)
-			keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"] = int(keybladeCsvData[keyblade][0])
-			keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"] = int(keybladeCsvData[keyblade][1])
-		if autoLevelStats and "levels" in keybladeJsonData[keyblade]:
-			calculateLevelStats(keyblade)
+		if keyblade in keybladeJsonData:
+			global autoLevelStats, levelToChange
+			if (levelToChange == 0 or not "levels" in keybladeJsonData[keyblade]):
+				message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+				print(message)
+				keybladeJsonData[keyblade]["base_stats"]["str"] = int(keybladeCsvData[keyblade][0])
+				keybladeJsonData[keyblade]["base_stats"]["mag"] = int(keybladeCsvData[keyblade][1])
+			else:
+				message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+				print(message)
+				keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"] = int(keybladeCsvData[keyblade][0])
+				keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"] = int(keybladeCsvData[keyblade][1])
+			if autoLevelStats and "levels" in keybladeJsonData[keyblade]:
+				calculateLevelStats(keyblade)
 
 #bool confirm input
 def confirm(message):
@@ -197,12 +203,15 @@ def writeJson(keyblade, folder):
 
 dataGenOutput = []
 
+#generates java code for the datagen for keyblades, uses json data to build it
 def buildDataGenCode(keyblade):
+	#convert keyblade file name to variable name in Strings.java
 	keybladeName = keybladeNamesKey[keyblade]
 	keybladeName = "".join(i.capitalize() for i in keybladeName.split('_'))
 	keybladeName = keybladeName[0].lower() + keybladeName[1:]
 	keybladeName = keybladeName.replace("Kh1", "KH1").replace("Kh2", "KH2").replace("Kh3", "KH3").replace("Bbs", "BBS").replace("Ddd", "DDD")
 	firstLine = "getBuilder(Strings." + keybladeName + ").keychain(Strings." + keybladeName + "Chain).baseStats(" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ")\n"
+	#create ability list
 	abilityLine = "    .abilities("
 	for ability in keybladeJsonData[keyblade]["abilities"]:
 		abilityLine += "\"" + ability + "\","
@@ -230,50 +239,127 @@ def buildDataGenCode(keyblade):
 
 	dataGenOutput.extend(output)
 
-generateConfig()
-loadConfig()
+def validateFile(file, type):
+	if os.path.exists(file):
+		return True
+	else:
+		print("Missing " + type + " in path: " + file)
+		return False
 
-readNames()
+def csvToJson():
+	print("CSV to JSON")
 
-validCSV = False
-validJSON = False
-validNames = False
+	if validateFile(csvPath, "CSV") and validateFile(jsonFolder, "JSON folder") and validateFile(namesFile, "Names JSON"):
+		processStats()
+		succeeded = 0
+		total = 0
+		if confirm("Write new stats to json files?"):
+			if writeToLog:
+				writeToLog("Format - Keyblade: (strength, magic) -> (new strength, new magic)", True)
+			for keyblade in keybladeCsvData:
+				total += 1
+				if writeJson(keyblade, jsonFolder):
+					succeeded += 1
+					if (levelToChange == 0):
+						message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+					else:
+						message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+					if writeToLog:
+						writeToLog(message, False)
+			print("Successfully written to " + str(succeeded) + "/" + str(total) + " file(s)")
+	if skipMenuChoice not in options.keys():
+		displayOptions()
 
-if (os.path.exists(csvPath)):
-	validCSV = True
-else:
-	print("Invalid CSV path: " + csvPath)
-if (os.path.exists(jsonFolder)):
-	validJSON = True
-else:
-	print("Invalid JSON folder path: " + jsonFolder)
-if (os.path.exists(namesFile)):
-	validNames = True
-else:
-	print("Invalid Names JSON: " + namesFile)
+def jsonToCsv():
+	print("JSON to CSV")
 
-if validCSV and validJSON and validNames:
-	processStats()
-	if generateDataGenCode:
+	for name in keybladeNamesKey.keys():
+		global jsonFolder
+		if os.path.exists(buildFileName(name, jsonFolder)):
+			readJSON(name, jsonFolder)
+	
+	csvOutput = []
+
+	for keyblade, data in keybladeJsonData.items():
+		if levelToChange == 0:
+			csvOutput.append(keyblade + ", " + str(data["base_stats"]["str"]) + ", " + str(data["base_stats"]["mag"]) + "\n")
+		else:
+			csvOutput.append(keyblade + ", " + str(data["levels"][levelToChange]["str"]) + ", " + str(data["levels"][levelToChange]["mag"]) + "\n")
+	with open("output.csv", 'w') as out:
+		out.writelines(csvOutput)
+		print("Generated CSV in output.csv")
+	if skipMenuChoice not in options.keys():
+		displayOptions()
+
+def csvToJava():
+	print("CSV to Java")
+	dataGenOutput.clear()
+	if validateFile(csvPath, "CSV") and validateFile(jsonFolder, "JSON folder"):
+		processStats()
+		readCSV()
 		for keyblade in keybladeCsvData:
 			buildDataGenCode(keyblade)
 		with open("output.java", 'w') as out:
 			out.writelines(dataGenOutput)
 			print("Generated datagen java code in output.java")
-	succeeded = 0
-	total = 0
+	if skipMenuChoice not in options.keys():
+		displayOptions()
 
-	if confirm("Write new stats to json files?"):
-		if writeToLog:
-			writeToLog("Format - Keyblade: (strength, magic) -> (new strength, new magic)", True)
-		for keyblade in keybladeCsvData:
-			total += 1
-			if writeJson(keyblade, jsonFolder):
-				succeeded += 1
-				if (levelToChange == 0):
-					message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-				else:
-					message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-				if writeToLog:
-					writeToLog(message, False)
-		print("Successfully written to " + str(succeeded) + "/" + str(total) + " file(s)")
+def exit():
+	print("Thanks for using the tool :)")
+
+options = {
+	0: [csvToJson, "CSV to JSON(s): writes the stats specified in the CSV file to all the corresponding JSON files"],
+	1: [jsonToCsv, "JSON(s) to CSV: creates a CSV file from the folder containing the JSON files, will use levelToChange"],
+	2: [csvToJava, "CSV+JSON to Java: generates datagen code for stat changes, doesn't work for organization weapons"],
+	3: [exit, "Exit"]
+}
+
+def menuChoice():
+	choice = input("Choose an option: ")
+	
+	try:
+		int(choice)
+	except ValueError:
+		return menuChoice()
+
+	for key in options.keys():
+		if int(choice) == key:
+			return int(choice)
+	return menuChoice()
+
+def displayOptions():
+	keybladeJsonData.clear()
+	keybladeCsvData.clear()
+	choice = -1
+	if skipMenuChoice not in options.keys():
+		print("\n")
+		print("Keyblade Stat Changer v" + version)
+		print("--------------------------------")
+		for index, option in options.items():
+			print(str(index) + ". " + option[1])
+		print("--------------------------------")
+		choice = menuChoice()
+	else:
+		choice = skipMenuChoice
+	options[choice][0]()
+
+def downloadNames():
+	print("Downloading names.json from: https://raw.githubusercontent.com/Wehavecookies56/Keyblade-Stat-Changer/main/names.json...")
+
+	url = "https://raw.githubusercontent.com/Wehavecookies56/Keyblade-Stat-Changer/main/names.json"
+	urllib.request.urlretrieve(url, namesFile)
+
+	readNames()
+	return True
+
+def setup():
+	generateConfig()
+	loadConfig()
+	if validateFile(namesFile, "Names JSON"):
+		readNames()
+		displayOptions()
+	else:
+		if downloadNames():
+			displayOptions()
+setup()
