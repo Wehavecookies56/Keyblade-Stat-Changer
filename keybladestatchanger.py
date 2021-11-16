@@ -16,8 +16,9 @@ namesFile = "names.json"
 writeLog = True
 skipMenuChoice = -1
 weaponType = "keyblade"
+setReachAndAbility = False
 
-version = "1.5"
+version = "1.6"
 
 #Data read from CSV (key:keyblade, value:[str, mag])
 keybladeCsvData = {}
@@ -48,7 +49,7 @@ def strToBool(str):
 		return False
 #Creates config file if it doesn't exist and adds missing options
 def generateConfig():
-	global csvPath, jsonFolder, orgFolder, levelToChange, autoLevelStats, namesFile, writeLog, skipMenuChoice
+	global csvPath, jsonFolder, orgFolder, levelToChange, autoLevelStats, namesFile, writeLog, skipMenuChoice, setReachAndAbility
 	configDict = {
 		"csvPath": csvPath,
 		"keybladeJsonFolderPath": jsonFolder,
@@ -58,7 +59,9 @@ def generateConfig():
 		"namesFilePath": namesFile,
 		"writeLog": str(writeLog),
 		"skipMenuChoice": str(skipMenuChoice),
-		"weaponType": weaponType
+		"weaponType": weaponType,
+		"setReachAndAbility": str(setReachAndAbility)
+		
 	}
 	if not os.path.exists("config.cfg"):
 		with open("config.cfg", 'x') as cfgFile:
@@ -114,6 +117,9 @@ def loadConfig():
 				if (configdict[0] == "weaponType"):
 					global weaponType
 					weaponType = configdict[1].rstrip('\n')
+				if (configdict[0] == "setReachAndAbility"):
+					global setReachAndAbility
+					setReachAndAbility = strToBool(configdict[1].rstrip('\n'))
 				
 
 
@@ -134,7 +140,7 @@ def readCSV():
 def readJSON(name, folder):
 	fileName = buildFileName(name, folder)
 	if os.path.exists(fileName):
-		with open(fileName, 'r') as file:
+		with open(fileName, 'r', errors='ignore') as file:
 			data = file.read()
 			jsondata = json.loads(data)
 			keybladeJsonData[name] = jsondata;
@@ -181,19 +187,23 @@ def processStats():
 		else:
 			readJSON(keyblade, orgFolder)
 		if keyblade in keybladeJsonData:
-			global autoLevelStats, levelToChange
-			if (levelToChange == 0 or not "levels" in keybladeJsonData[keyblade]):
-				message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-				print(message)
-				keybladeJsonData[keyblade]["base_stats"]["str"] = int(keybladeCsvData[keyblade][0])
-				keybladeJsonData[keyblade]["base_stats"]["mag"] = int(keybladeCsvData[keyblade][1])
+			global autoLevelStats, levelToChange, setReachAndAbility
+			if not setReachAndAbility:
+				if (levelToChange == 0 or not "levels" in keybladeJsonData[keyblade]):
+					message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+					print(message)
+					keybladeJsonData[keyblade]["base_stats"]["str"] = int(keybladeCsvData[keyblade][0])
+					keybladeJsonData[keyblade]["base_stats"]["mag"] = int(keybladeCsvData[keyblade][1])
+				else:
+					message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+					print(message)
+					keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"] = int(keybladeCsvData[keyblade][0])
+					keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"] = int(keybladeCsvData[keyblade][1])
+				if autoLevelStats and "levels" in keybladeJsonData[keyblade]:
+					calculateLevelStats(keyblade)
 			else:
-				message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-				print(message)
-				keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"] = int(keybladeCsvData[keyblade][0])
-				keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"] = int(keybladeCsvData[keyblade][1])
-			if autoLevelStats and "levels" in keybladeJsonData[keyblade]:
-				calculateLevelStats(keyblade)
+				keybladeJsonData[keyblade]["reach"] = float(keybladeCsvData[keyblade][0])
+				keybladeJsonData[keyblade]["ability"] = str(keybladeCsvData[keyblade][1].replace(" ", "", 1))
 
 #bool confirm input
 def confirm(message):
@@ -228,14 +238,7 @@ def buildDataGenCode(keyblade):
 	keybladeName = "".join(i.capitalize() for i in keybladeName.split('_'))
 	keybladeName = keybladeName[0].lower() + keybladeName[1:]
 	keybladeName = keybladeName.replace("Kh1", "KH1").replace("Kh2", "KH2").replace("Kh3", "KH3").replace("Bbs", "BBS").replace("Ddd", "DDD")
-	firstLine = "getBuilder(Strings." + keybladeName + ").keychain(Strings." + keybladeName + "Chain).baseStats(" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ")\n"
-	#create ability list
-	abilityLine = "    .abilities("
-	for ability in keybladeJsonData[keyblade]["abilities"]:
-		abilityLine += "\"" + ability + "\","
-	lastComma = abilityLine.rfind(',')
-	abilityLine = abilityLine[:lastComma] + abilityLine[lastComma + 1:]
-	abilityLine += ")\n"
+	firstLine = "getBuilder(Strings." + keybladeName + ").keychain(Strings." + keybladeName + "Chain).baseStats(" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ").ability(\"" + str(keybladeJsonData[keyblade]["ability"]) + "\").reach(" + str(keybladeJsonData[keyblade]["reach"]) + "F)\n"
 	levelLines = []
 	for level in keybladeJsonData[keyblade]["levels"]:
 		materialsDic = {}
@@ -249,7 +252,7 @@ def buildDataGenCode(keyblade):
 			line += ".addMaterial(Strings." + name + ", " + str(quan) + ")"
 		line += ").build())\n"
 		levelLines.append(line)
-	output = [firstLine, abilityLine]
+	output = [firstLine, ""]
 	for line in levelLines:
 		output.append(line)
 	output.append("    .desc(\"" + str(keybladeJsonData[keyblade]["description"]) + "\");\n")
@@ -282,12 +285,13 @@ def csvToJson():
 				total += 1
 				if writeJson(keyblade, jsonf):
 					succeeded += 1
-					if (levelToChange == 0):
-						message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-					else:
-						message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
-					if writeToLog:
-						writeToLog(message, False)
+					if not setReachAndAbility:
+						if (levelToChange == 0):
+							message = keyblade + ": (" + str(keybladeJsonData[keyblade]["base_stats"]["str"]) + ", " + str(keybladeJsonData[keyblade]["base_stats"]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+						else:
+							message = keyblade + ": (" + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["str"]) + ", " + str(keybladeJsonData[keyblade]["levels"][levelToChange-1]["mag"]) + ") -> " + "(" + keybladeCsvData[keyblade][0] + ", " + keybladeCsvData[keyblade][1] + ")"
+						if writeToLog:
+							writeToLog(message, False)
 			print("Successfully written to " + str(succeeded) + "/" + str(total) + " file(s)")
 	if skipMenuChoice not in options.keys():
 		displayOptions()
@@ -306,10 +310,13 @@ def jsonToCsv():
 	csvOutput = []
 
 	for keyblade, data in keybladeJsonData.items():
-		if levelToChange == 0:
-			csvOutput.append(keyblade + ", " + str(data["base_stats"]["str"]) + ", " + str(data["base_stats"]["mag"]) + "\n")
+		if not setReachAndAbility:
+			if levelToChange == 0:
+				csvOutput.append(keyblade + ", " + str(data["base_stats"]["str"]) + ", " + str(data["base_stats"]["mag"]) + "\n")
+			else:
+				csvOutput.append(keyblade + ", " + str(data["levels"][levelToChange]["str"]) + ", " + str(data["levels"][levelToChange]["mag"]) + "\n")
 		else:
-			csvOutput.append(keyblade + ", " + str(data["levels"][levelToChange]["str"]) + ", " + str(data["levels"][levelToChange]["mag"]) + "\n")
+			csvOutput.append(keyblade + ", " + str(data["reach"]) + ", " + str(data["ability"]) + "\n")
 	with open("output.csv", 'w') as out:
 		out.writelines(csvOutput)
 		print("Generated CSV in output.csv")
